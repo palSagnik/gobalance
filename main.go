@@ -29,7 +29,7 @@ type Config struct {
 
 // Server is an instance of a running server
 type Server struct{
-	url url.URL
+	url *url.URL
 	proxy *httputil.ReverseProxy
 }
 
@@ -48,18 +48,45 @@ func (sl *ServerList) Next() uint32 {
 
 type Odin struct {
 	Config *Config
+	ServerList *ServerList
+}
+
+func NewOdin(conf *Config) *Odin {
+	servers := make([]*Server, 0)
+	for _, service := range conf.Services {
+		for _, replica := range service.Replicas {
+			serverUrl, err := url.Parse(replica)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			serverProxy := httputil.NewSingleHostReverseProxy(serverUrl)
+			servers = append(servers, &Server{
+				url: serverUrl,
+				proxy: serverProxy,
+			})
+		}
+	}
+
+	return &Odin{
+		Config: conf,
+		ServerList: &ServerList{
+			Servers: servers,
+			currentServer: uint32(0),
+		},
+	}
 }
 
 func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 }
+
+
 func main() {
 
 	flag.Parse()
 	conf := &Config{}
-	odin := &Odin{
-		Config: conf,
-	}
+	odin := NewOdin(conf)
 
 	server := http.Server{
 		Addr:    "",
