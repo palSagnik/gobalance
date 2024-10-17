@@ -78,7 +78,8 @@ func NewOdin(conf *Config) *Odin {
 }
 
 func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-
+	next := o.ServerList.Next()
+	o.ServerList.Servers[next].proxy.ServeHTTP(res, req)
 }
 
 
