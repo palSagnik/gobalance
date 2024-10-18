@@ -79,7 +79,7 @@ func NewOdin(conf *Config) *Odin {
 }
 
 func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	log.Info("received new request: url = %s", req.URL.String())
+	log.Infof("received new request: url = '%s'", req.Host)
 	next := o.ServerList.Next()
 	o.ServerList.Servers[next].proxy.ServeHTTP(res, req)
 }
@@ -88,7 +88,22 @@ func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func main() {
 
 	flag.Parse()
-	conf := &Config{}
+	conf := &Config{
+		Services: []Service {
+			{
+				Name: "Test1",
+				Replicas: []string{"http://localhost:8081"},
+			},
+			{
+				Name: "Test2",
+				Replicas: []string{"http://localhost:8082"},
+			},
+			{
+				Name: "Test3",
+				Replicas: []string{"http://localhost:8083"},
+			},
+		},
+	}
 	odin := NewOdin(conf)
 
 	server := http.Server{
