@@ -6,22 +6,24 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 
-	models "github.com/palSagnik/gobalance/pkg/models"
+	config "github.com/palSagnik/gobalance/pkg/config"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	port = flag.Int("port", 8080, "port to start lb")
+	port = flag.Int("port", 8080, "port to start odin")
+	configfile = flag.String("config-file", "", "configuration file to supply to odin")
 )
 
 type Odin struct {
-	Config *models.Config
-	ServerList *models.ServerList
+	Config *config.Config
+	ServerList *config.ServerList
 }
 
-func NewOdin(conf *models.Config) *Odin {
-	servers := make([]*models.Server, 0)
+func NewOdin(conf *config.Config) *Odin {
+	servers := make([]*config.Server, 0)
 	for _, service := range conf.Services {
 		for _, replica := range service.Replicas {
 			serverUrl, err := url.Parse(replica)
@@ -30,7 +32,7 @@ func NewOdin(conf *models.Config) *Odin {
 			}
 
 			serverProxy := httputil.NewSingleHostReverseProxy(serverUrl)
-			servers = append(servers, &models.Server{
+			servers = append(servers, &config.Server{
 				Url: serverUrl,
 				Proxy: serverProxy,
 			})
@@ -39,7 +41,7 @@ func NewOdin(conf *models.Config) *Odin {
 
 	return &Odin{
 		Config: conf,
-		ServerList: &models.ServerList{
+		ServerList: &config.ServerList{
 			Servers: servers,
 			CurrentServer: uint32(0),
 		},
@@ -51,20 +53,24 @@ func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	next := o.ServerList.Next()
 	log.Infof("forwarding to server: '%d'", next)
-	o.ServerList.Servers[next].Proxy.ServeHTTP(res, req)
+	o.ServerList.Servers[next].Forward(res, req)
 }
 
 
 func main() {
 	flag.Parse()
 
-	conf := &models.Config{
-		Services: []models.Service {
-			{
-				Name: "Test",
-				Replicas: []string{"http://localhost:8081", "http://localhost:8082"},
-			},
-		},
+	// handling file
+	file, err := os.Open(*configfile)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// handling configuration
+	conf, err := config.LoadConfig(file)
+	if err != nil {
+		log.Fatal(err)
 	}
 	odin := NewOdin(conf)
 

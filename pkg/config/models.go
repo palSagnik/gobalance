@@ -9,7 +9,7 @@ import (
 
 type Service struct {
 	Name     string   `yaml:"name"`
-	Replicas []string `yaml:"service"`
+	Replicas []string `yaml:"replicas"`
 }
 
 // This is a representation of a configuration given to the loadbalancer
@@ -20,12 +20,12 @@ type Config struct {
 
 // Server is an instance of a running server
 type Server struct {
-	url   *url.URL
-	proxy *httputil.ReverseProxy
+	Url   *url.URL
+	Proxy *httputil.ReverseProxy
 }
 
 func (s *Server) Forward(res http.ResponseWriter, req *http.Request) {
-	s.proxy.ServeHTTP(res, req)
+	s.Proxy.ServeHTTP(res, req)
 }
 
 type ServerList struct {

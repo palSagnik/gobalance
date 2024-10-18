@@ -6,8 +6,8 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	_, err := LoadConfig(strings.NewReader(`
-strategy: Round-Robin
+	conf, err := LoadConfig(strings.NewReader(`
+strategy: RoundRobin
 service:
   - name: test service
     replicas:
@@ -15,5 +15,18 @@ service:
       - localhost:8082`,))
 	if err != nil {
 		t.Error(err)
+	}
+
+	if conf.Strategy != "RoundRobin" {
+		t.Errorf("strategy expected to be `RoundRobin` found `%s` instead.", conf.Strategy)
+	}
+	if len(conf.Services) != 1 {
+		t.Errorf("expected services count to be 1 got %d instead.", len(conf.Services))
+	}
+	if conf.Services[0].Name != "test service" {
+		t.Errorf("expected service name to be equal to `test service` found %s instead.", conf.Services[0].Name)
+	}
+	if len(conf.Services[0].Replicas) != 2 {
+		t.Errorf("expected service replicas to be equal to 2 found %d instead.", len(conf.Services[0].Replicas))
 	}
 }
