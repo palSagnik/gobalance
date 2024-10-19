@@ -10,11 +10,12 @@ import (
 type Service struct {
 	Name     string   `yaml:"name"`
 	Replicas []string `yaml:"replicas"`
+	Matcher  string   `yaml:"matcher"` // A prefix to select the service based on the path of the url
 }
 
 // This is a representation of a configuration given to the loadbalancer
 type Config struct {
-	Services []Service `yaml:"service"`
+	Services []Service `yaml:"services"`
 	Strategy string    `yaml:"strategy"` // Name of the strategy used for load balancing
 }
 
@@ -28,11 +29,14 @@ func (s *Server) Forward(res http.ResponseWriter, req *http.Request) {
 	s.Proxy.ServeHTTP(res, req)
 }
 
+// This is the server list for a particular service
 type ServerList struct {
+	// Servers are the Replicas
 	Servers []*Server
 
-	// The list of servers are circulated through in a cyclic manner
-	// next server is (currentServer + 1) * len(servers)
+	// This is the name of the service in the configuration file
+	Name    string
+
 	CurrentServer uint32
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 
 	config "github.com/palSagnik/gobalance/pkg/config"
 	log "github.com/sirupsen/logrus"
@@ -19,12 +20,13 @@ var (
 
 type Odin struct {
 	Config *config.Config
-	ServerList *config.ServerList
+	ServerList map[string]*config.ServerList
 }
 
 func NewOdin(conf *config.Config) *Odin {
-	servers := make([]*config.Server, 0)
+	serverMap := make(map[string]*config.ServerList, 0)
 	for _, service := range conf.Services {
+		servers := make([]*config.Server, 0)
 		for _, replica := range service.Replicas {
 			serverUrl, err := url.Parse(replica)
 			if err != nil {
@@ -37,23 +39,46 @@ func NewOdin(conf *config.Config) *Odin {
 				Proxy: serverProxy,
 			})
 		}
+		serverMap[service.Matcher] = &config.ServerList{
+			Servers: servers,
+			CurrentServer: uint32(0),
+			Name: service.Name,
+		}
 	}
 
 	return &Odin{
 		Config: conf,
-		ServerList: &config.ServerList{
-			Servers: servers,
-			CurrentServer: uint32(0),
-		},
+		ServerList: serverMap,
 	}
 }
+
+// finds the first server list which matches the req path
+// returns an error if no match found
+func (o *Odin) findServiceList(reqPath string) (*config.ServerList, error) {
+
+	log.Infof("trying to find a matcher for the request: '%s'", reqPath)
+	for matcher, s := range o.ServerList {
+		if strings.HasPrefix(reqPath, matcher) {
+			log.Infof("found the service '%s' for the matching request", s.Name)
+			return s, nil
+		}
+	}
+	return nil, fmt.Errorf("did not find any matching service for url '%s'", reqPath)
+}
+
 
 func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	log.Infof("received new request: url = '%s'", req.Host)
 
-	next := o.ServerList.Next()
+	sl, err := o.findServiceList(req.URL.Path)
+	if err != nil {
+		log.Error(err)
+		res.WriteHeader(http.StatusNotFound)
+		return
+	}
+	next := sl.Next()
 	log.Infof("forwarding to server: '%d'", next)
-	o.ServerList.Servers[next].Forward(res, req)
+	sl.Servers[next].Forward(res, req)
 }
 
 
