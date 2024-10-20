@@ -11,6 +11,7 @@ strategy: RoundRobin
 services:
   - name: test service
     matcher: /api/v1
+    strategy: RoundRobin
     replicas:
       - localhost:8081
       - localhost:8082`))
@@ -26,6 +27,9 @@ services:
 	}
 	if conf.Services[0].Name != "test service" {
 		t.Errorf("expected service name to be equal to `test service` found %s instead.", conf.Services[0].Name)
+	}
+	if conf.Services[0].Strategy != "RoundRobin" {
+		t.Errorf("expected strategy to be equal to `round robin` found %s instead.", conf.Services[0].Strategy)
 	}
 	if conf.Services[0].Matcher != "/api/v1" {
 		t.Errorf("expected service name to be equal to `/api/v1` found %s instead.", conf.Services[0].Matcher)
