@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"sync/atomic"
+
 )
 
 type Service struct {
@@ -31,16 +31,7 @@ func (s *Server) Forward(res http.ResponseWriter, req *http.Request) {
 
 // This is the server list for a particular service
 type ServerList struct {
-	// Servers are the Replicas
-	Servers []*Server
-
-	// This is the name of the service in the configuration file
-	Name    string
-
-	CurrentServer uint32
-}
-
-func (sl *ServerList) Next() uint32 {
-	nxt := atomic.AddUint32(&sl.CurrentServer, uint32(1))
-	return nxt % uint32(len(sl.Servers))
+	Servers  []*Server                  	// Servers are the Replicas
+	Name     string                     	// This is the name of the service in the configuration file
+	Strategy strategy.BalancingStrategy 	// This is how the service is load balanced. It should never be empty and should default to RoundRobin
 }

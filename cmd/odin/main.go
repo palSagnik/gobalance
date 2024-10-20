@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	port = flag.Int("port", 8080, "port to start odin")
+	port       = flag.Int("port", 8080, "port to start odin")
 	configfile = flag.String("config-file", "", "configuration file to supply to odin")
 )
 
 type Odin struct {
-	Config *config.Config
+	Config     *config.Config
 	ServerList map[string]*config.ServerList
 }
 
@@ -35,19 +35,18 @@ func NewOdin(conf *config.Config) *Odin {
 
 			serverProxy := httputil.NewSingleHostReverseProxy(serverUrl)
 			servers = append(servers, &config.Server{
-				Url: serverUrl,
+				Url:   serverUrl,
 				Proxy: serverProxy,
 			})
 		}
 		serverMap[service.Matcher] = &config.ServerList{
-			Servers: servers,
-			CurrentServer: uint32(0),
-			Name: service.Name,
+			Servers:       servers,
+			Name:          service.Name,
 		}
 	}
 
 	return &Odin{
-		Config: conf,
+		Config:     conf,
 		ServerList: serverMap,
 	}
 }
@@ -66,7 +65,6 @@ func (o *Odin) findServiceList(reqPath string) (*config.ServerList, error) {
 	return nil, fmt.Errorf("did not find any matching service for url '%s'", reqPath)
 }
 
-
 func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	log.Infof("received new request: url = '%s'", req.Host)
 
@@ -76,11 +74,10 @@ func (o *Odin) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
-	next := sl.Next()
+	next, err := sl.Strategy.Next(sl.Servers)
 	log.Infof("forwarding to server: '%d'", next)
 	sl.Servers[next].Forward(res, req)
 }
-
 
 func main() {
 	flag.Parse()
